@@ -7,7 +7,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:3000', 'https://www.roblox.com', 'https://web.roblox.com', 'https://studio.roblox.com', '*'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: true
+}));
 app.use(express.json());
 
 // Database connection
@@ -27,6 +32,14 @@ pool.query('SELECT NOW()', (err, res) => {
     }
 });
 
+// Preflight handler for CORS
+app.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    res.sendStatus(200);
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -38,13 +51,18 @@ app.post('/query', async (req, res) => {
         const { query, params = [] } = req.body;
         
         if (!query) {
+            console.log('❌ No query provided');
             return res.status(400).json({ error: 'Query is required' });
         }
         
         console.log('📝 Executing query:', query);
         console.log('📝 Parameters:', params);
+        console.log('📝 Request origin:', req.headers.origin);
+        console.log('📝 User agent:', req.headers['user-agent']);
         
         const result = await pool.query(query, params);
+        
+        console.log('✅ Query executed successfully, rows:', result.rows.length);
         
         res.json({
             success: true,
